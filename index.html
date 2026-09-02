@@ -723,6 +723,42 @@ window.__jmpQueueFinish = function(){
   }
 };
 
-})();  </script>
+})();  </script><script>
+(function() {
+  var qrcodeSources = [
+    "https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js",
+    "https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
+  ];
+  var jsqrSources = [
+    "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js",
+    "https://unpkg.com/jsqr@1.4.0/dist/jsQR.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"
+  ];
+
+  function loadScriptWithFallback(sources, index, onDone) {
+    if (index >= sources.length) {
+      console.warn("Impossible de charger la librairie après plusieurs essais:", sources[0]);
+      onDone(false);
+      return;
+    }
+    var script = document.createElement("script");
+    script.src = sources[index];
+    script.onload = function() { onDone(true); };
+    script.onerror = function() {
+      script.remove();
+      loadScriptWithFallback(sources, index + 1, onDone);
+    };
+    document.head.appendChild(script);
+  }
+
+  loadScriptWithFallback(qrcodeSources, 0, function(ok) {
+    if (!ok) window.__qrcodeLoadFailed = true;
+  });
+  loadScriptWithFallback(jsqrSources, 0, function(ok) {
+    if (!ok) window.__jsqrLoadFailed = true;
+  });
+})();
+</script>
 </body>
 </html>
