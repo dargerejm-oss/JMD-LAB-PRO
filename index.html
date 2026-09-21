@@ -374,6 +374,65 @@ function startScan(panel){
   });
 }
 
+// Alternate compact text format: "JMLAB_PRESET:NOM" followed by
+// "Cle:valeur" tokens (Expo, Contrast, Temp, Tint, High, Shadow,
+// Vibr, Sat, Clarity). Only keys with an equivalent slider in this
+// app are kept; the rest (Black, White, Dehaze, HSL, Curve, Vign,
+// Sharp, ...) have no matching control here and are ignored.
+var TEXT_PRESET_KEY_MAP = {
+  Expo: "Exposition",
+  Contrast: "Contraste",
+  Temp: "Temperature",
+  Tint: "Teinte",
+  High: "Hautes SANS GRIS",
+  Shadow: "Ombres",
+  Vibr: "Vibrance",
+  Sat: "Saturation",
+  Clarity: "Clarte"
+};
+var TEXT_PRESET_RANGES = {
+  "Exposition": [-5, 5],
+  "Contraste": [-100, 100],
+  "Temperature": [-100, 100],
+  "Teinte": [-100, 100],
+  "Hautes SANS GRIS": [-100, 0],
+  "Ombres": [0, 100],
+  "Vibrance": [-100, 100],
+  "Saturation": [-100, 100],
+  "Clarte": [-100, 100]
+};
+
+function parseTextPreset(text){
+  var nameMatch = text.match(/JMLAB_PRESET:(\S+)/);
+  if(!nameMatch) return null;
+
+  var values = {};
+  var unmapped = [];
+  var tokenRe = /([A-Za-z]+):([+-]?\d+(?:\.\d+)?)/g;
+  var tm;
+  while((tm = tokenRe.exec(text)) !== null){
+    var key = tm[1];
+    var label = TEXT_PRESET_KEY_MAP[key];
+    if(!label){
+      if(key !== "JMLAB_PRESET" && unmapped.indexOf(key) === -1) unmapped.push(key);
+      continue;
+    }
+    var num = parseFloat(tm[2]);
+    var range = TEXT_PRESET_RANGES[label];
+    if(range) num = Math.max(range[0], Math.min(range[1], num));
+    values[label] = num;
+  }
+
+  if(Object.keys(values).length === 0) return null;
+
+  return {
+    name: nameMatch[1].replace(/_/g, " "),
+    values: values,
+    date: new Date().toISOString(),
+    unmapped: unmapped
+  };
+}
+
 function handleScanResult(panel, text){
   var parsed = null;
   try{ parsed = JSON.parse(text); }catch(e){}
@@ -383,6 +442,21 @@ function handleScanResult(panel, text){
     parsed.presets.forEach(function(p){ list.push(p); });
     savePresets(list);
     alert(parsed.presets.length + " preset(s) importe(s) !");
+    renderPanel(panel);
+    return;
+  }
+
+  var textPreset = parseTextPreset(text);
+  if(textPreset){
+    var list2 = loadPresets();
+    var stored = { name: textPreset.name, values: textPreset.values, date: textPreset.date };
+    list2.push(stored);
+    savePresets(list2);
+    var msg = "Preset \"" + textPreset.name + "\" importe !";
+    if(textPreset.unmapped.length > 0){
+      msg += "\n\nParametres ignores (pas de reglage equivalent dans cette appli) : " + textPreset.unmapped.join(", ");
+    }
+    alert(msg);
     renderPanel(panel);
     return;
   }
